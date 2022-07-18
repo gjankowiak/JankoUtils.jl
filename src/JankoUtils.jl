@@ -1,6 +1,6 @@
 module JankoUtils
 
-export read_dict, write_dict, load_float64_array, pprint, diff_dict, idxmod, inspect, scale_cm
+export read_dict, write_dict, load_float64_array, pprint, diff_dict, idxmod, inspect, scale_cm, isContained
 
 import SparseArrays
 const SA = SparseArrays
@@ -228,8 +228,8 @@ function scale_cm(x::Array{Float64,1}, cm;
 end
 
 """
-check if the nodes of a polygon are ordered
-in a counter clock wise orientation
+    check if the nodes of a polygon are ordered
+    in a counter clock wise orientation
 """
 function check_ccw_polygon(x::Array{Float64,2})
     n = size(x, 1)
@@ -254,6 +254,110 @@ function check_ccw_polygon(x::Array{Float64,2})
     end
 
     return total_angle >= 0
+end
+
+
+macro cross(v1, v2)
+    return esc(:($v1[1]*$v2[2]-$v1[2]*$v2[1]))
+end
+
+"""
+    compute_ls_intersect(A1, A2, B1, B2; exclude_ends=false, tol=1e-11)
+
+    Check if two two line segments A1A2 and B1B2 intersect.
+    If exclude_ends is true, end points are not considered part of the segments.
+
+    Segments are considered parallel if the absolute value of their cross-product is less than tol.
+    Parallel or almost parallel segments are considering not intersecting.
+
+    Returns a tuple ({C1; C2], endpoint) if the segments intersects, where [C1; C2] is the intersection point
+    and endpoint is true if the intersection lies on an endpoint of the input segments.
+    Otherwise, returns (missing, false).
+"""
+function compute_ls_intersect(a1::Vector{Float64}, a2::Vector{Float64},
+                              b1::Vector{Float64}, b2::Vector{Float64};
+                              exclusive::Bool=false, tol::Float64=1e-11)::Tuple{Union{Vector{Float64}, Missing},Bool}
+    if a1 == b1
+        if exclusive
+            return (missing, false)
+        else
+            return (a1, true)
+        end
+    elseif a1 == b2
+        if exclusive
+            return (missing, false)
+        else
+            return (a1, true)
+        end
+    elseif a2 == b1
+        if exclusive
+            return (missing, false)
+        else
+            return (a1, true)
+        end
+    elseif a2 == b2
+        if exclusive
+            return (missing, false)
+        else
+            return (a1, true)
+        end
+    end
+
+    c = @cross(a2-a1, b2-b1)
+    if abs(c) < tol
+        # segments are // and we don't deal with overlap
+        return (missing, false)
+    end
+
+    t = @cross(b1-a1, b2-b1)/c
+    u = @cross(b1-a1, a2-a1)/c
+
+    if (0 <= t <= 1) && (0 <= u <= 1)
+        return ((a1 + t*(a2-a1)), false)
+    else
+        return (missing, false)
+    end
+end
+
+"""
+intersectIsContained(Pin, Pout)
+
+Assuming that polygons Pin and Pout have non zero intersection,
+check if Pin is contained in Pout by checking for intersection
+between all edges (not efficient).
+"""
+function intersectIsContained(Pin, Pout)
+    nPin = size(Pin, 1) 
+    nPout = size(Pout, 1)
+
+    Ain1 = zeros(2)
+    Ain2 = zeros(2)
+    Aout1 = zeros(2)
+    Aout2 = zeros(2)
+
+    for i in 1:nPin
+        if i == nPin
+            Ain1 .= Pin[nPin,:]
+            Ain2 .= Pin[1,:]
+        else
+            Ain1 .= Pin[i,:]
+            Ain2 .= Pin[i+1,:]
+        end
+        for j in 1:nPout
+            if j == nPout
+                Aout1 .= Pout[nPout,:]
+                Aout2 .= Pout[1,:]
+            else
+                Aout1 .= Pout[j,:]
+                Aout2 .= Pout[j+1,:]
+            end
+            (intersect, endpoint) = compute_ls_intersect(Ain1, Ain2, Aout1, Aout2)
+            if !ismissing(intersect) && !endpoint
+                return false
+            end
+        end
+    end
+    return true
 end
 
 end # module JankoUtils
