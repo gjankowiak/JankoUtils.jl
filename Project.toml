@@ -1,7 +1,8 @@
 name = "JankoUtils"
 uuid = "c162ff04-248c-11e9-37d4-2fd351b76fad"
 authors = ["Gaspard Jankowiak <gaspard@math.janko.fr>"]
-version = "0.1.0"
+version = "0.2.0"
 
 [deps]
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
+Term = "22787eb5-b846-44ae-b979-8e399b8463ab"

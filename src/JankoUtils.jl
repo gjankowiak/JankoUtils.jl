@@ -1,5 +1,11 @@
 module JankoUtils
 
+using Term.Progress
+import Term.Progress:
+    AbstractColumn, DescriptionColumn, CompletedColumn, ProgressColumn, SpaceColumn, ElapsedColumn
+import Term.Segments: Segment
+import Term.Measures: Measure
+
 export read_dict, write_dict, load_float64_array, pprint, diff_dict, idxmod, inspect, scale_cm, isContained
 
 import SparseArrays
@@ -327,7 +333,7 @@ check if Pin is contained in Pout by checking for intersection
 between all edges (not efficient).
 """
 function intersectIsContained(Pin, Pout)
-    nPin = size(Pin, 1) 
+    nPin = size(Pin, 1)
     nPout = size(Pout, 1)
 
     Ain1 = zeros(2)
@@ -358,6 +364,35 @@ function intersectIsContained(Pin, Pout)
         end
     end
     return true
+end
+
+struct LiveDescriptionColumn <: AbstractColumn
+    job::ProgressJob
+    segments::Vector{Segment}
+    measure::Measure
+    style::String
+
+    function LiveDescriptionColumn(job::ProgressJob; style::String = "white")
+        desc = Segment(job.description, style)
+        return new(job, [desc], desc.measure, style)
+    end
+end
+
+function Progress.update!(col::LiveDescriptionColumn, color::String; args...)::String
+    txt = Segment(col.job.description, col.style)
+    return txt.text
+end
+
+"""
+    PBar(refresh_rate)
+
+    Create a progress bar. See test/progress.jl for an example.
+"""
+function PBar(refresh_rate::Int=10)
+    mycols = [DescriptionColumn, CompletedColumn, SpaceColumn, ProgressColumn, LiveDescriptionColumn, ElapsedColumn]
+
+    pbar = ProgressBar(; columns = mycols, refresh_rate=refresh_rate)
+    return pbar
 end
 
 end # module JankoUtils
